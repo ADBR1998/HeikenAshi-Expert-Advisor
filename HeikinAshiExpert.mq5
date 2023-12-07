@@ -16,8 +16,12 @@ ulong posTicket;
 double RiskPercent = 1;
 
 double buyPrice = 0;
-
+double newTP = 0;
+double newSL = 0;
+bool temp = false;
 int handleHA;
+double take_profit = 0;
+double stop_loss = 0;
 
 int macd;
 
@@ -76,6 +80,7 @@ void OnDeinit(const int reason)
 //---
    
   }
+
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
@@ -83,6 +88,36 @@ void OnTick()
 {
     // Get the number of bars
     int bars = iBars(_Symbol, PERIOD_CURRENT);
+    
+   if (posTicket > 0)
+   {
+       double current = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+       temp = (current-buyPrice) >= (0.75 * (take_profit - buyPrice));
+       //Print(__FUNCTION__," condition %b", temp);
+       if (temp)
+       {
+           Print(__FUNCTION__," modify position");
+           newTP = take_profit + (buyPrice - stop_loss);
+           newSL = stop_loss + (buyPrice - stop_loss);
+           
+           // Modify the stop loss and take profit
+            if (PositionSelectByTicket(posTicket)) {
+                // Modify the position's stop loss and take profit levels using PositionModify
+                if (trade.PositionModify(posTicket, newSL, newTP)) {
+                    // Modification successful
+                        buyPrice = current;
+                        take_profit = newTP;
+                        stop_loss = newSL;
+                } else {
+                    // Failed to modify the position
+                    // Handle the failure scenario here
+                }
+            } else {
+                // Position with the specified ticket not found
+                // Handle the case when the position is not found
+            }
+       }
+   }
 
     // Check if the number of bars has changed
     if (barsTotal != bars)
@@ -106,6 +141,15 @@ void OnTick()
         
         
         StoreLowValue(haLow[0]);
+        
+        temp = SymbolInfoDouble(_Symbol, SYMBOL_ASK) >= (buyPrice + 0.8 * (take_profit - buyPrice)); 
+        Comment("\nHA diff============ ", temp,
+                    "\n current ", DoubleToString(SymbolInfoDouble(_Symbol, SYMBOL_ASK), _Digits),
+                    "\n stop_loss ", DoubleToString(stop_loss, _Digits),
+                    "\n take_profit ", DoubleToString(take_profit, _Digits),
+                    "\n newSL ", DoubleToString(newSL, _Digits),
+                    "\n newTP ", DoubleToString(newTP, _Digits),
+                    "\n MACD ", DoubleToString(MACD[0], _Digits));
 
         // Check Heiken Ashi trend
         if (haOpen[0] < haClose[0])
@@ -121,25 +165,33 @@ void OnTick()
             double currentBuyPrice  = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
 
             // Calculate stop loss and take profit
-            double stop_loss = CalculateStopLoss();
-            
-            
-            double take_profit = currentBuyPrice + (currentBuyPrice - stop_loss);
+            stop_loss = CalculateStopLoss();
+            take_profit = currentBuyPrice + (currentBuyPrice - stop_loss);
 
             // Get contract size
             double contract_size = SymbolInfoDouble(Symbol(), SYMBOL_TRADE_CONTRACT_SIZE);
 
-            // Calculate lot size
-            double lot_size = (OnePercentBalance) / ((currentBuyPrice - stop_loss) * contract_size);
-            
-            
-            
-            
-            
-
             // Close existing sell position
             if (posTicket > 0)
             {
+            
+                //double temp = currentBuyPrice - (buyPrice + 0.8 * (take_profit - buyPrice));
+                //Comment("\nHA diff============ ", DoubleToString(haOpen[0], _Digits));     
+                // Check if conditions are met to update the stop loss
+                //temp = currentBuyPrice >= (buyPrice + 0.8 * (take_profit - buyPrice));
+                ////Print(__FUNCTION__," condition %b", temp);
+                //if (temp)
+                //{
+                //    Print(__FUNCTION__," modify position");
+                //    newTP = take_profit + (buyPrice - stop_loss);
+                //    newSL = stop_loss + (buyPrice - stop_loss);
+                //    if (trade.PositionModify(posTicket, newSL, newTP))
+                //    {
+                //        buyPrice = currentBuyPrice;
+                //        take_profit = newTP;
+                //        stop_loss = newSL;
+                //    }
+                //}
                 if (PositionSelectByTicket(posTicket))
                 {
                     if (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL)
@@ -160,7 +212,6 @@ void OnTick()
             {
                 double entry = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
                 entry = NormalizeDouble(entry, _Digits);
-                lot_size = NormalizeDouble(lot_size, _Digits);
                 
                 double lots = calclots(RiskPercent,entry-stop_loss);
                                 
@@ -171,38 +222,14 @@ void OnTick()
                    {
                        posTicket = trade.ResultOrder();
                        buyPrice = entry;
-                      // Check if conditions are met to update the stop loss
-                      if (buyPrice == currentBuyPrice + 0.8*(take_profit-currentBuyPrice))
-                      {
-                          if (trade.PositionModify(posTicket,currentBuyPrice,take_profit)){
-                              Print("Stop Loss modified successfully to: ", stop_loss);
-      
-                       }
-                   }
+                       newSL = newTP = 0;
                    }
                 }
             }
-            
-                // Check if conditions are met to update the stop loss
-                if (buyPrice == currentBuyPrice + 0.8*(take_profit-currentBuyPrice))
-                {
-                    if (trade.PositionModify(posTicket,currentBuyPrice,take_profit)){
-                        Print("Stop Loss modified successfully to: ", stop_loss);
 
-                    
-                    }
-                }
 
             // Display information
-            Comment("\nHA Open ", DoubleToString(haOpen[0], _Digits),
-                    "\nHA Close ", DoubleToString(haClose[0], _Digits),
-                    "\nAccBal ", DoubleToString(balance, _Digits),
-                    "\nLotSize ", DoubleToString(lot_size, _Digits),
-                    "\nContract ", DoubleToString(contract_size, _Digits),
-                    "\nOnePerBal ", DoubleToString(OnePercentBalance, _Digits),
-                    "\nStoploss ", DoubleToString(stop_loss, _Digits),
-                    "\nPosTicket ", DoubleToString(posTicket, _Digits),
-                    "\nMACD ", DoubleToString(MACD[0], _Digits));
+            
         }
         else if (haOpen[0] > haClose[0])
         {
