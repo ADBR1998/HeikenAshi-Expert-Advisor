@@ -13,8 +13,7 @@ CTrade trade;
 
 ulong posTicket;
 
-input double RiskPercent = 0.01;
-input int slPoints = 200;
+double RiskPercent = 1;
 
 double buyPrice = 0;
 
@@ -64,7 +63,7 @@ int OnInit()
    
    macd = iCustom(_Symbol, PERIOD_CURRENT,"Examples\\MACD.ex5" );
    
-   handleHA = iCustom(_Symbol, PERIOD_CURRENT, "Example\\HA2.ex5");
+   handleHA = iCustom(_Symbol, PERIOD_CURRENT, "HA2.ex5");
    
 //---
    return(INIT_SUCCEEDED);
@@ -245,7 +244,7 @@ void OnTick()
 }
 
 
-double calclots (double RiskPercent, double slDistance){
+double calclots (double risk_percent, double slDistance){
    double ticksize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
    double tickvalue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
    double lotstep = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
@@ -256,7 +255,7 @@ double calclots (double RiskPercent, double slDistance){
       return 0;
     }
    
-   double riskMoney = AccountInfoDouble(ACCOUNT_BALANCE)*RiskPercent /100;
+   double riskMoney = AccountInfoDouble(ACCOUNT_BALANCE)*risk_percent /100;
    double moneyLotStep = (slDistance / ticksize) * tickvalue * lotstep;
    
    if (moneyLotStep == 0){
